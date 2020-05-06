@@ -47,7 +47,8 @@ public class BossMetricsPlugin extends Plugin
 	@Getter
 	private BossMetricsMonster currentMonster;
 
-	@Getter private int personalBest;
+	@Getter
+	private int personalBest;
 
 	@Getter
 	private boolean isInBossRegion;
