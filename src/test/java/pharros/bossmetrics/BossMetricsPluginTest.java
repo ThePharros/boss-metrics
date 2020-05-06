@@ -1,13 +1,13 @@
-package com.example;
+package pharros.bossmetrics;
 
 import net.runelite.client.RuneLite;
 import net.runelite.client.externalplugins.ExternalPluginManager;
 
-public class ExamplePluginTest
+public class BossMetricsPluginTest
 {
 	public static void main(String[] args) throws Exception
 	{
-		ExternalPluginManager.loadBuiltin(ExamplePlugin.class);
+		ExternalPluginManager.loadBuiltin(BossMetricsPlugin.class);
 		RuneLite.main(args);
 	}
 }
