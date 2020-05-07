@@ -1,30 +1,20 @@
 package pharros.bossmetrics;
 
 import com.google.inject.Provides;
+import java.awt.Color;
+import java.time.Duration;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import lombok.Getter;
-import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.GameState;
-import net.runelite.api.Player;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
-
-import com.google.gson.JsonParseException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import net.runelite.http.api.RuneLiteAPI;
-import okhttp3.HttpUrl;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
 
 @Slf4j
 @PluginDescriptor(
@@ -39,16 +29,34 @@ public class BossMetricsPlugin extends Plugin
 	private BossMetricsConfig config;
 
 	@Inject
+	private ConfigManager configManager;
+
+	@Inject
 	private OverlayManager overlayManager;
 
 	@Inject
 	private BossMetricsOverlay overlay;
 
+	@Inject
+	private BossMetricsPreviousKillsOverlay previousKillsOverlay;
+
+	@Inject
+	private BossMetricsPreviousKillsAverageOverlay previousKillsAverageOverlay;
+
 	@Getter
 	private BossMetricsMonster currentMonster;
 
 	@Getter
-	private int personalBest;
+	private int personalBest = -1;
+
+	@Getter
+	private int currentTime = 0;
+
+	@Getter
+	private Color colCurrentTime = Color.GREEN;
+
+	@Getter
+	int[] previousKillTimes;
 
 	@Getter
 	private boolean isInBossRegion;
@@ -56,23 +64,42 @@ public class BossMetricsPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
-		log.info("Example started!");
+		log.info("Boss Metrics plugin started!");
+		previousKillTimes = new int[]{181, 188, 199, 185, 211};
 		currentMonster = BossMetricsMonster.GROTESQUE_GUARDIANS;
 		overlayManager.add(overlay);
-
-		try {
-			personalBest = getPb(client.getUsername(), currentMonster.getName());
-		} catch (IOException e) {
-			log.info("IOException caught!");
-			personalBest = -1;
+		if (config.getPreviousKillAmount() > 0)
+		{
+			overlayManager.add(previousKillsOverlay);
 		}
-
+		if (config.showPreviousKillAverage())
+		{
+			overlayManager.add(previousKillsAverageOverlay);
+		}
 	}
 
 	@Override
 	protected void shutDown()
 	{
-		log.info("Example stopped!");
+		log.info("Boss Metrics plugin stopped!");
+	}
+
+	private int getPb(String boss)
+	{
+		Integer personalBest = configManager.getConfiguration("personalbest." + client.getUsername().toLowerCase(),
+			boss.toLowerCase(), int.class);
+		return personalBest == null ? 0 : personalBest;
+	}
+
+	 String getDisplayTime(int secs)
+	{
+		int seconds = secs % 60;
+		int minutes = secs % 3600 / 60;
+		int hours = secs % 3600;
+		if (hours == 0) {
+			return String.format("%d:%02d:%02d", hours, minutes, seconds);
+		}
+		return String.format("%d:%02d", minutes, seconds);
 	}
 
 	@Subscribe
@@ -80,36 +107,16 @@ public class BossMetricsPlugin extends Plugin
 	{
 		if (gameStateChanged.getGameState() == GameState.LOGGED_IN)
 		{
-			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Example says " + config.greeting(), null);
+			personalBest = getPb("grotesque guardians");
 		}
 	}
 
 	@Subscribe
 	public void onGameTick(GameTick tick)
 	{
-		//Player player = client.getLocalPlayer();
+
 	}
 
-	public int getPb(String username, String boss) throws IOException
-	{
-		HttpUrl url = RuneLiteAPI.getApiBase().newBuilder()
-			.addQueryParameter("name", username)
-			.addQueryParameter("boss", boss)
-			.build();
-
-		Request request = new Request.Builder()
-			.url(url)
-			.build();
-
-		try (Response response = RuneLiteAPI.CLIENT.newCall(request).execute())
-		{
-			if (!response.isSuccessful())
-			{
-				throw new IOException("Unable to look up personal best!");
-			}
-			return Integer.parseInt(response.body().string());
-		}
-	}
 
 	@Provides
 	BossMetricsConfig provideConfig(ConfigManager configManager)

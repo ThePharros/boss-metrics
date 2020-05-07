@@ -11,7 +11,7 @@ import net.runelite.client.ui.overlay.components.LineComponent;
 import net.runelite.client.ui.overlay.components.PanelComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
 
-class BossMetricsOverlay extends Overlay
+class BossMetricsPreviousKillsAverageOverlay extends Overlay
 {
     private final BossMetricsConfig config;
     private final Client client;
@@ -19,7 +19,7 @@ class BossMetricsOverlay extends Overlay
     private final PanelComponent panelComponent = new PanelComponent();
 
     @Inject
-    private BossMetricsOverlay (Client client, BossMetricsConfig config, BossMetricsPlugin plugin)
+    private BossMetricsPreviousKillsAverageOverlay (Client client, BossMetricsConfig config, BossMetricsPlugin plugin)
     {
         setPosition(OverlayPosition.TOP_RIGHT);
         this.config = config;
@@ -33,31 +33,19 @@ class BossMetricsOverlay extends Overlay
         panelComponent.getChildren().clear();
 
         panelComponent.getChildren().add(TitleComponent.builder()
-            .text(plugin.getCurrentMonster().getName())
+            .text(config.getPreviousKillAmount() + "-Kill Average")
             .color(Color.WHITE)
             .build());
 
-        panelComponent.getChildren().add(LineComponent.builder()
-            .left("")
-            .leftColor(Color.WHITE)
-            .right("")
-            .rightColor(Color.WHITE)
-            .build());
-
-        String strPersonalBest = plugin.getDisplayTime(plugin.getPersonalBest());
-        panelComponent.getChildren().add(LineComponent.builder()
-            .left("Personal best:")
-            .leftColor(Color.WHITE)
-            .right(strPersonalBest)
-            .rightColor(Color.YELLOW)
-            .build());
-
-        String strCurrentTime = plugin.getDisplayTime(plugin.getCurrentTime());
-        panelComponent.getChildren().add(LineComponent.builder()
-            .left("Current time:")
-            .leftColor(Color.WHITE)
-            .right(strCurrentTime)
-            .rightColor(plugin.getColCurrentTime())
+        int sum = 0;
+        for (int i = 0; i < config.getPreviousKillAmount(); i++)
+        {
+            sum += plugin.getPreviousKillTimes()[i];
+        }
+        sum /= config.getPreviousKillAmount();
+        panelComponent.getChildren().add(TitleComponent.builder()
+            .text(plugin.getDisplayTime(sum))
+            .color(Color.YELLOW)
             .build());
 
         return panelComponent.render(graphics);
