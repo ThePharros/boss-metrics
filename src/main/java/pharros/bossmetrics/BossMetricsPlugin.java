@@ -43,6 +43,9 @@ public class BossMetricsPlugin extends Plugin
 	@Inject
 	private BossMetricsPreviousKillsAverageOverlay previousKillsAverageOverlay;
 
+	@Inject
+	private BossMetricsKillCountOverlay killCountOverlay;
+
 	@Getter
 	private BossMetricsMonster currentMonster;
 
@@ -51,6 +54,9 @@ public class BossMetricsPlugin extends Plugin
 
 	@Getter
 	private int currentTime = 0;
+
+	@Getter
+	private int currKillCount = 0;
 
 	@Getter
 	private Color colCurrentTime = Color.GREEN;
@@ -74,7 +80,10 @@ public class BossMetricsPlugin extends Plugin
 		}
 		if (config.showPreviousKillAverage())
 		{
-			overlayManager.add(previousKillsAverageOverlay);
+			//overlayManager.add(previousKillsAverageOverlay);
+		}
+		if (config.showSessionKillCount()) {
+			//overlayManager.add(killCountOverlay);
 		}
 	}
 
@@ -96,9 +105,10 @@ public class BossMetricsPlugin extends Plugin
 		int seconds = secs % 60;
 		int minutes = secs % 3600 / 60;
 		int hours = secs % 3600;
-		if (hours == 0) {
-			return String.format("%d:%02d:%02d", hours, minutes, seconds);
-		}
+		//if (hours > 0)
+		//{
+		//	return String.format("%d:%02d:%02d", hours, minutes, seconds);
+		//}
 		return String.format("%d:%02d", minutes, seconds);
 	}
 

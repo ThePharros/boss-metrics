@@ -44,6 +44,16 @@ class BossMetricsOverlay extends Overlay
             .rightColor(Color.WHITE)
             .build());
 
+        if (config.showSessionKillCount())
+        {
+            panelComponent.getChildren().add(LineComponent.builder()
+                .left("Killstreak:")
+                .leftColor(Color.WHITE)
+                .right(Integer.toString(plugin.getCurrKillCount()))
+                .rightColor(Color.WHITE)
+                .build());
+        }
+
         String strPersonalBest = plugin.getDisplayTime(plugin.getPersonalBest());
         panelComponent.getChildren().add(LineComponent.builder()
             .left("Personal best:")

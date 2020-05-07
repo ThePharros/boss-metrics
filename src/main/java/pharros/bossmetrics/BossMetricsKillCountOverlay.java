@@ -11,7 +11,7 @@ import net.runelite.client.ui.overlay.components.LineComponent;
 import net.runelite.client.ui.overlay.components.PanelComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
 
-class BossMetricsPreviousKillsAverageOverlay extends Overlay
+class BossMetricsKillCountOverlay extends Overlay
 {
     private final BossMetricsConfig config;
     private final Client client;
@@ -19,7 +19,7 @@ class BossMetricsPreviousKillsAverageOverlay extends Overlay
     private final PanelComponent panelComponent = new PanelComponent();
 
     @Inject
-    private BossMetricsPreviousKillsAverageOverlay (Client client, BossMetricsConfig config, BossMetricsPlugin plugin)
+    private BossMetricsKillCountOverlay (Client client, BossMetricsConfig config, BossMetricsPlugin plugin)
     {
         setPosition(OverlayPosition.TOP_RIGHT);
         this.config = config;
@@ -33,19 +33,22 @@ class BossMetricsPreviousKillsAverageOverlay extends Overlay
         panelComponent.getChildren().clear();
 
         panelComponent.getChildren().add(TitleComponent.builder()
-            .text(config.getPreviousKillAmount() + "-Kill Average:")
+            .text("Session Kill Count")
             .color(Color.WHITE)
             .build());
 
-        int sum = 0;
-        for (int i = 0; i < config.getPreviousKillAmount(); i++)
+        String txt;
+        if (plugin.getCurrKillCount() == 1)
         {
-            sum += plugin.getPreviousKillTimes()[i];
+            txt = " kill";
+        } else
+            {
+            txt = " kills";
         }
-        sum /= config.getPreviousKillAmount();
+
         panelComponent.getChildren().add(TitleComponent.builder()
-            .text(plugin.getDisplayTime(sum))
-            .color(Color.YELLOW)
+            .text(plugin.getCurrKillCount() + txt)
+            .color(Color.GREEN)
             .build());
 
         return panelComponent.render(graphics);

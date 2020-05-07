@@ -39,15 +39,50 @@ class BossMetricsPreviousKillsOverlay extends Overlay
             .color(Color.WHITE)
             .build());
 
+        int sum = 0;
         for (int i = 0; i < config.getPreviousKillAmount(); i++)
         {
+            if (i == 0)
+            {
+                panelComponent.getChildren().add(LineComponent.builder()
+                    .left("Last kill")
+                    .leftColor(Color.WHITE)
+                    .right(plugin.getDisplayTime(plugin.getPreviousKillTimes()[i]))
+                    .rightColor(Color.WHITE)
+                    .build());
+            }
+            else
+            {
+                panelComponent.getChildren().add(LineComponent.builder()
+                    .left(i + 1 + " kills ago")
+                    .leftColor(Color.WHITE)
+                    .right(plugin.getDisplayTime(plugin.getPreviousKillTimes()[i]))
+                    .rightColor(Color.WHITE)
+                    .build());
+            }
+
+            if (config.showPreviousKillAverage())
+            {
+                sum += plugin.getPreviousKillTimes()[i];
+            }
+        }
+
+        if (config.showPreviousKillAverage())
+        {
             panelComponent.getChildren().add(LineComponent.builder()
-                .left("Kill " + i)
+                .left("")
                 .leftColor(Color.WHITE)
-                .right(plugin.getDisplayTime(plugin.getPreviousKillTimes()[i]))
+                .right("")
                 .rightColor(Color.WHITE)
                 .build());
-            i++;
+
+            sum /= config.getPreviousKillAmount();
+            panelComponent.getChildren().add(LineComponent.builder()
+                .left(config.getPreviousKillAmount() + "-Kill average")
+                .leftColor(Color.WHITE)
+                .right(plugin.getDisplayTime(sum))
+                .rightColor(Color.YELLOW)
+                .build());
         }
 
         return panelComponent.render(graphics);

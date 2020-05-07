@@ -11,8 +11,8 @@ public interface BossMetricsConfig extends Config
 	@Range(max=5)
 	@ConfigItem(
 		keyName = "previouskillamount",
-		name = "Previous kill amount",
-		description = "The number of previous kills to track (0 to disable)"
+		name = "Previous Kill Amount",
+		description = "The number of previous kills to track (0 to disable)."
 	)
 	default int getPreviousKillAmount()
 	{
@@ -21,10 +21,20 @@ public interface BossMetricsConfig extends Config
 
 	@ConfigItem(
 		keyName = "showpreviouskillaverage",
-		name = "Show previous kill average",
-		description = "Will show the average time of the last N kills."
+		name = "Show Previous Kill Average",
+		description = "Shows the average time of the last N kills."
 	)
 	default boolean showPreviousKillAverage()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "showsessionkillcount",
+		name = "Show Session Kill Count",
+		description = "Shows the current session's kill count."
+	)
+	default boolean showSessionKillCount()
 	{
 		return true;
 	}
