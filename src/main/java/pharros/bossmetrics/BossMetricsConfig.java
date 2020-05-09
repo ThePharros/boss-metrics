@@ -4,38 +4,57 @@ import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.Range;
+import net.runelite.client.config.Units;
 
 @ConfigGroup("bossmetrics")
 public interface BossMetricsConfig extends Config
 {
-	@Range(max=5)
 	@ConfigItem(
-		keyName = "previouskillamount",
-		name = "Previous Kill Amount",
-		description = "The number of previous kills to track (0 to disable)."
+		position = 1,
+		keyName = "showsessionkillcount",
+		name = "Show Session Kill Count",
+		description = "Shows the current session's kill count"
 	)
-	default int getPreviousKillAmount()
+	default boolean showSessionKillCount()
 	{
-		return 5;
+		return true;
 	}
 
 	@ConfigItem(
+		position = 2,
 		keyName = "showpreviouskillaverage",
 		name = "Show Previous Kill Average",
-		description = "Shows the average time of the last N kills."
+		description = "Shows the average time of the last N kills"
 	)
 	default boolean showPreviousKillAverage()
 	{
 		return true;
 	}
 
+	@Range(max=5)
 	@ConfigItem(
-		keyName = "showsessionkillcount",
-		name = "Show Session Kill Count",
-		description = "Shows the current session's kill count."
+		position = 3,
+		keyName = "getpreviouskillamount",
+		name = "Previous Kill Amount",
+		description = "The number of previous kills to track (0 to disable)"
 	)
-	default boolean showSessionKillCount()
+	default int getPreviousKillAmount()
 	{
-		return true;
+		return 5;
 	}
+
+	@Units(Units.SECONDS)
+	@Range(max=300)
+	@ConfigItem(
+		position = 4,
+		keyName = "gettimeroffset",
+		name = "Timer Offset",
+		description = "Set how long to wait before timers and the overlay expire once the player leaves the boss region"
+	)
+	default int getTimerOffset()
+	{
+		return 30;
+	}
+
+
 }

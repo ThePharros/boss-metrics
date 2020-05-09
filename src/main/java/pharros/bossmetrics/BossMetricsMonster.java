@@ -1,7 +1,8 @@
 package pharros.bossmetrics;
 
+import com.google.common.collect.ImmutableMap;
+import java.util.Map;
 import javax.annotation.Nullable;
-
 import lombok.Getter;
 
 @Getter
@@ -27,15 +28,39 @@ enum BossMetricsMonster
     ZULRAH("Zulrah", 9007),
     NIGHTMARE("Nightmare of Ashihama", 15515);
 
+    private static final Map<Integer, BossMetricsMonster> FROM_REGION;
+
+    static
+    {
+        ImmutableMap.Builder<Integer, BossMetricsMonster> regionMapBuilder = new ImmutableMap.Builder<>();
+        for (BossMetricsMonster monster : BossMetricsMonster.values())
+        {
+            if (monster.getRegionIds() == null)
+            {
+                continue;
+            }
+
+            for (int region : monster.getRegionIds())
+            {
+                regionMapBuilder.put(region, monster);
+            }
+        }
+        FROM_REGION = regionMapBuilder.build();
+    }
+
     private final String name;
 
     @Nullable
-    private final int[] regionIDs;
+    private int[] regionIds;
 
-    BossMetricsMonster(String name, int... regionIDs)
+    BossMetricsMonster(String name, int... regionIds)
     {
         this.name = name;
-        this.regionIDs = regionIDs;
+        this.regionIds = regionIds;
     }
 
+    public static BossMetricsMonster fromRegion(final int regionId)
+    {
+        return FROM_REGION.get(regionId);
+    }
 }

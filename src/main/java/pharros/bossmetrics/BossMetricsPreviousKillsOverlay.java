@@ -17,7 +17,6 @@ class BossMetricsPreviousKillsOverlay extends Overlay
     private final Client client;
     private final BossMetricsPlugin plugin;
     private final PanelComponent panelComponent = new PanelComponent();
-    private int[] previousKillTimes;
 
     @Inject
     private BossMetricsPreviousKillsOverlay (Client client, BossMetricsConfig config, BossMetricsPlugin plugin)
@@ -26,7 +25,6 @@ class BossMetricsPreviousKillsOverlay extends Overlay
         this.config = config;
         this.plugin = plugin;
         this.client = client;
-        //previousKillTimes = new int[]{123, 188, 154, 185};
     }
 
     @Override

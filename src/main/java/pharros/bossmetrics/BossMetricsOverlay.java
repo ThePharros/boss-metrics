@@ -32,8 +32,19 @@ class BossMetricsOverlay extends Overlay
     {
         panelComponent.getChildren().clear();
 
+        if (plugin.isTimerActive()) {
+            long diff = System.currentTimeMillis() - plugin.getLastTickMillis();
+            int time = 1 + (int)(((long)config.getTimerOffset()*1000 - plugin.getTimeSince().toMillis() - diff)/1000d);
+            panelComponent.getChildren().add(LineComponent.builder()
+                .left("Timeout in:")
+                .leftColor(Color.WHITE)
+                .right(plugin.getDisplayTime(time))
+                .rightColor(Color.RED)
+                .build());
+        }
+
         panelComponent.getChildren().add(TitleComponent.builder()
-            .text(plugin.getCurrentMonster().getName())
+            .text(plugin.getCurrentMonsterName())
             .color(Color.WHITE)
             .build());
 
@@ -47,9 +58,9 @@ class BossMetricsOverlay extends Overlay
         if (config.showSessionKillCount())
         {
             panelComponent.getChildren().add(LineComponent.builder()
-                .left("Killstreak:")
+                .left("Session kills:")
                 .leftColor(Color.WHITE)
-                .right(Integer.toString(plugin.getCurrKillCount()))
+                .right(Integer.toString(plugin.getSessionKills()))
                 .rightColor(Color.WHITE)
                 .build());
         }
