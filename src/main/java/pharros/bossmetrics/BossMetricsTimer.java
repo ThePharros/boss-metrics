@@ -19,9 +19,9 @@ class BossMetricsTimer
         isActive = false;
     }
 
-    void start() {
+    void start(int delay) {
         log.info("Timer started!");
-        currSeconds = 0;
+        currSeconds = -delay;
         startTime = Instant.now();
         isActive = true;
     }
@@ -38,7 +38,10 @@ class BossMetricsTimer
 
     void stop()
     {
-        log.info("STOPPING TIMER WITH CURRENT SECONDS OF: " + currSeconds);
-        isActive = false;
+        if (isActive)
+        {
+            log.info("STOPPING TIMER WITH CURRENT SECONDS OF: " + currSeconds);
+            isActive = false;
+        }
     }
 }

@@ -84,7 +84,7 @@ class BossMetricsPreviousKillsOverlay extends Overlay
             }
 
             panelComponent.getChildren().add(LineComponent.builder()
-                .left(config.getPreviousKillAmount() + "-Kill average")
+                .left(config.getPreviousKillAmount() + "-kill average")
                 .leftColor(Color.WHITE)
                 .right(plugin.getDisplayTime(sum))
                 .rightColor(Color.YELLOW)

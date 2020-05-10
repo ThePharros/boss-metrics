@@ -74,12 +74,12 @@ class BossMetricsOverlay extends Overlay
             .build());
 
         Color currTimeColor = Color.GREEN;
-        if (session.getPersonalBest() <= session.getKillTimer().getCurrSeconds()) {
+        if (session.getKillTimer().getCurrSeconds() >= session.getPersonalBest()) {
             currTimeColor = Color.WHITE;
         }
         String strCurrentTime = plugin.getDisplayTime((int)session.getKillTimer().getCurrSeconds());
         panelComponent.getChildren().add(LineComponent.builder()
-            .left("Current time:")
+            .left("Approx. time:")
             .leftColor(Color.WHITE)
             .right(strCurrentTime)
             .rightColor(currTimeColor)

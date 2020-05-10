@@ -56,7 +56,7 @@ public class BossMetricsPlugin extends Plugin
 
 	private long lastTickMillis = 0;
 	private Duration timeSince = Duration.ofSeconds(0);
-    private static final Pattern KILL_DURATION_PATTERN = Pattern.compile("(?i)^(?:Fight |Lap |Challenge |Corrupted challenge )?duration: <col=ff0000>[0-9:]+</col>\\. Personal best: ([0-9:]+)");
+    private static final Pattern KILL_DURATION_PATTERN = Pattern.compile("(?i)^(?:Fight |Lap |Challenge |Corrupted challenge )?duration: <col=ff0000>([0-9:]+)</col>\\. Personal best: [0-9:]+");
     private static final Pattern NEW_PB_PATTERN = Pattern.compile("(?i)^(?:Fight |Lap |Challenge |Corrupted challenge )?duration: <col=ff0000>([0-9:]+)</col> \\(new personal best\\)");
     private static final Pattern KILLCOUNT_PATTERN = Pattern.compile("Your (.+) (?:kill|harvest|lap|completion) count is: <col=ff0000>(\\d+)</col>");
 
@@ -92,7 +92,7 @@ public class BossMetricsPlugin extends Plugin
 
 		//Grotesque Guardians
 		if (session != null && event.getActor().getAnimation() == 390) {
-			startPbTimer();
+			startPbTimer(3);
 		}
 	}
 
@@ -106,24 +106,31 @@ public class BossMetricsPlugin extends Plugin
             Matcher matcher = KILLCOUNT_PATTERN.matcher(message);
             if (matcher.find())
             {
+                log.info("KILL COUNT PATTERN FOUND, MATCHER GROUP 1 IS " + matcher.group(1));
                 String boss = matcher.group(1);
                 if (boss.equals(session.getCurrentMonster().getName()))
                 {
                     session.incrementKc();
-                    session.getKillTimer().stop();
+
                 }
             }
 
             matcher = KILL_DURATION_PATTERN.matcher(message);
             if (matcher.find())
             {
-                matchKillTime(matcher);
+                log.info("KILL DUR PATTERN FOUND. MATCHER GROUP 1 = " + matcher.group(1));
+                int seconds = timeStringToSeconds(matcher.group(1));
+                session.recordPreviousTime(seconds);
+                session.getKillTimer().stop();
             }
 
             matcher = NEW_PB_PATTERN.matcher(message);
             if (matcher.find())
             {
-                matchKillTime(matcher);
+                log.info("NEW PB PATTERN FOUND. MATCHER GROUP 1 = " + matcher.group(1));
+                int seconds = timeStringToSeconds(matcher.group(1));
+                session.recordPreviousTime(seconds);
+                session.getKillTimer().stop();
             }
         }
     }
@@ -212,12 +219,6 @@ public class BossMetricsPlugin extends Plugin
             return Integer.parseInt(s[0]) * 60 * 60 + Integer.parseInt(s[1]) * 60 + Integer.parseInt(s[2]);
         }
         return Integer.parseInt(timeString);
-    }
-
-    private void matchKillTime(Matcher matcher)
-    {
-        int seconds = timeStringToSeconds(matcher.group(0));
-        session.recordPreviousTime(seconds);
     }
 
     private void updateBossMetricsState()
@@ -326,9 +327,9 @@ public class BossMetricsPlugin extends Plugin
 		return String.format("%d:%02d", minutes, seconds);
 	}
 
-    void startPbTimer()
+    void startPbTimer(int delay)
     {
-        session.getKillTimer().start();
+        session.getKillTimer().start(delay);
     }
 
     private void expireSession()
