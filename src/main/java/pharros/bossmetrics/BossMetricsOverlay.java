@@ -1,9 +1,8 @@
 package pharros.bossmetrics;
 
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Graphics2D;
+import java.awt.*;
 import javax.inject.Inject;
+
 import net.runelite.api.Client;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -16,15 +15,17 @@ class BossMetricsOverlay extends Overlay
     private final BossMetricsConfig config;
     private final Client client;
     private final BossMetricsPlugin plugin;
+    private BossMetricsSession session;
     private final PanelComponent panelComponent = new PanelComponent();
 
     @Inject
-    private BossMetricsOverlay (Client client, BossMetricsConfig config, BossMetricsPlugin plugin)
+    BossMetricsOverlay(Client client, BossMetricsConfig config, BossMetricsPlugin plugin)
     {
         setPosition(OverlayPosition.TOP_RIGHT);
         this.config = config;
         this.plugin = plugin;
         this.client = client;
+        this.session = plugin.getSession();
     }
 
     @Override
@@ -32,9 +33,10 @@ class BossMetricsOverlay extends Overlay
     {
         panelComponent.getChildren().clear();
 
-        if (plugin.isTimerActive()) {
+        if (plugin.getState() == BossMetricsState.IN_SESSION_TIMEOUT)
+        {
             long diff = System.currentTimeMillis() - plugin.getLastTickMillis();
-            int time = 1 + (int)(((long)config.getTimerOffset()*1000 - plugin.getTimeSince().toMillis() - diff)/1000d);
+            int time = 1 + (int) (((long) config.getTimerOffset() * 1000 - plugin.getTimeSince().toMillis() - diff) / 1000d);
             panelComponent.getChildren().add(LineComponent.builder()
                 .left("Timeout in:")
                 .leftColor(Color.WHITE)
@@ -44,7 +46,7 @@ class BossMetricsOverlay extends Overlay
         }
 
         panelComponent.getChildren().add(TitleComponent.builder()
-            .text(plugin.getCurrentMonsterName())
+            .text(session.getCurrentMonster().getName())
             .color(Color.WHITE)
             .build());
 
@@ -80,7 +82,6 @@ class BossMetricsOverlay extends Overlay
             .right(strCurrentTime)
             .rightColor(plugin.getColCurrentTime())
             .build());
-
         return panelComponent.render(graphics);
     }
 }
