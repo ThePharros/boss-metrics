@@ -1,10 +1,11 @@
 package pharros.bossmetrics;
 
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @AllArgsConstructor
-@Getter
+@Getter(AccessLevel.PACKAGE)
 enum BossMetricsState
 {
     NO_SESSION,

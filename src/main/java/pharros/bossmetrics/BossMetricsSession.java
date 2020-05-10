@@ -2,9 +2,8 @@ package pharros.bossmetrics;
 
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.Client;
-import net.runelite.client.config.ConfigManager;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,6 +11,10 @@ import java.util.Arrays;
 @Slf4j
 class BossMetricsSession
 {
+    @Setter(AccessLevel.PACKAGE)
+    @Getter(AccessLevel.PACKAGE)
+    private int timeoutTimeRemaining;
+
     @Getter(AccessLevel.PACKAGE)
     private int sessionKc = 0;
 
@@ -19,40 +22,29 @@ class BossMetricsSession
     BossMetricsMonster currentMonster;
 
     @Getter(AccessLevel.PACKAGE)
-    private int currentTime = 0;
-
-    @Getter(AccessLevel.PACKAGE)
-    private int timeSinceTimeout;
-
-    @Getter(AccessLevel.PACKAGE)
     private ArrayList<Integer> previousKillTimes;
 
-    private Client client;
-    private Instant sessionTimeoutStart;
-    private BossMetricsPlugin plugin;
-    private BossMetricsTimer killTimer;
-    private ConfigManager configManager;
-    private int lastPb;
+    @Getter
+    private int personalBest;
 
-    BossMetricsSession(BossMetricsPlugin plugin, Client client, ConfigManager configManager, BossMetricsMonster currentMonster) {
-        this.plugin = plugin;
-        this.client = client;
-        this.configManager = configManager;
+    @Getter
+    private Instant sessionTimeoutStart;
+
+    @Getter
+    private BossMetricsTimer killTimer;
+
+    BossMetricsSession(BossMetricsPlugin plugin, BossMetricsMonster currentMonster) {
         previousKillTimes = new ArrayList<>(Arrays.asList(0,0,0,0,0,0));
-        this.killTimer = new BossMetricsTimer(plugin);
+        killTimer = new BossMetricsTimer();
         this.sessionTimeoutStart = Instant.EPOCH;
         this.currentMonster = currentMonster;
+        this.personalBest = plugin.getPb(currentMonster.getName());
         log.info("SESSION STARTED FOR " + currentMonster.getName());
     }
 
     void incrementKc()
     {
         sessionKc++;
-    }
-
-    void resetTimeout()
-    {
-
     }
 
     void updateSessionTimeoutStart()
@@ -64,10 +56,5 @@ class BossMetricsSession
     {
         previousKillTimes.add(0, (int)seconds);
         previousKillTimes.remove(5);
-    }
-
-    void expire()
-    {
-
     }
 }

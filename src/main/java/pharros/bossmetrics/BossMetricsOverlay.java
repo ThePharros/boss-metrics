@@ -15,7 +15,6 @@ class BossMetricsOverlay extends Overlay
     private final BossMetricsConfig config;
     private final Client client;
     private final BossMetricsPlugin plugin;
-    private BossMetricsSession session;
     private final PanelComponent panelComponent = new PanelComponent();
 
     @Inject
@@ -25,22 +24,21 @@ class BossMetricsOverlay extends Overlay
         this.config = config;
         this.plugin = plugin;
         this.client = client;
-        this.session = plugin.getSession();
     }
 
     @Override
     public Dimension render(Graphics2D graphics)
     {
+        final BossMetricsSession session = plugin.getSession();
+
         panelComponent.getChildren().clear();
 
         if (plugin.getState() == BossMetricsState.IN_SESSION_TIMEOUT)
         {
-            long diff = System.currentTimeMillis() - plugin.getLastTickMillis();
-            int time = 1 + (int) (((long) config.getTimerOffset() * 1000 - plugin.getTimeSince().toMillis() - diff) / 1000d);
             panelComponent.getChildren().add(LineComponent.builder()
                 .left("Timeout in:")
                 .leftColor(Color.WHITE)
-                .right(plugin.getDisplayTime(time))
+                .right(plugin.getDisplayTimeRemaining(session.getTimeoutTimeRemaining()))
                 .rightColor(Color.RED)
                 .build());
         }
@@ -62,12 +60,12 @@ class BossMetricsOverlay extends Overlay
             panelComponent.getChildren().add(LineComponent.builder()
                 .left("Session kills:")
                 .leftColor(Color.WHITE)
-                .right(Integer.toString(plugin.getSessionKills()))
+                .right(Integer.toString(session.getSessionKc()))
                 .rightColor(Color.WHITE)
                 .build());
         }
 
-        String strPersonalBest = plugin.getDisplayTime(plugin.getPersonalBest());
+        String strPersonalBest = plugin.getDisplayTime(session.getPersonalBest());
         panelComponent.getChildren().add(LineComponent.builder()
             .left("Personal best:")
             .leftColor(Color.WHITE)
@@ -75,12 +73,16 @@ class BossMetricsOverlay extends Overlay
             .rightColor(Color.YELLOW)
             .build());
 
-        String strCurrentTime = plugin.getDisplayTime(plugin.getCurrentTime());
+        Color currTimeColor = Color.GREEN;
+        if (session.getPersonalBest() <= session.getKillTimer().getCurrSeconds()) {
+            currTimeColor = Color.WHITE;
+        }
+        String strCurrentTime = plugin.getDisplayTime((int)session.getKillTimer().getCurrSeconds());
         panelComponent.getChildren().add(LineComponent.builder()
             .left("Current time:")
             .leftColor(Color.WHITE)
             .right(strCurrentTime)
-            .rightColor(plugin.getColCurrentTime())
+            .rightColor(currTimeColor)
             .build());
         return panelComponent.render(graphics);
     }

@@ -2,7 +2,6 @@ package pharros.bossmetrics;
 
 import java.time.Duration;
 import java.time.Instant;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -10,51 +9,36 @@ import lombok.extern.slf4j.Slf4j;
 class BossMetricsTimer
 {
     @Getter
-    private long currSeconds = 0;
+    private long currSeconds;
 
-    private boolean isActive = false;
-    private long lastTickMillis;
-    private BossMetricsPlugin plugin;
-    private BossMetricsSession session;
+    private boolean isActive;
     private Instant startTime;
 
-    BossMetricsTimer(BossMetricsPlugin plugin) {
-        this.plugin = plugin;
-        this.session = plugin.getSession();
+    BossMetricsTimer() {
+        currSeconds = 0;
+        isActive = false;
+    }
+
+    void start() {
+        log.info("Timer started!");
+        currSeconds = 0;
+        startTime = Instant.now();
+        isActive = true;
     }
 
     void update()
     {
-        lastTickMillis = System.currentTimeMillis();
-
         if (isActive)
         {
             Duration timeSince = Duration.between(startTime, Instant.now());
             currSeconds = timeSince.getSeconds();
-            //log.info("THIS TIMER'S SECONDS: " + currSeconds);
+            log.info("Timer's current seconds: " + currSeconds);
         }
     }
 
-
-    void start() {
-        log.info("Timer started!");
-        isActive = true;
-        currSeconds = 0;
-        startTime = Instant.now();
-    }
-
-    void end(boolean recordTime) {
+    void stop()
+    {
+        log.info("STOPPING TIMER WITH CURRENT SECONDS OF: " + currSeconds);
         isActive = false;
-        if (recordTime && session != null)
-        {
-            session.recordPreviousTime(currSeconds);
-        }
-        currSeconds = 0;
-        onTimerEnd();
-        log.info("Timer ended!");
-    }
-
-    private void onTimerEnd() {
-
     }
 }

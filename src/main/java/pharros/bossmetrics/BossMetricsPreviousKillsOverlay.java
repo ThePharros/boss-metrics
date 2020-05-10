@@ -18,7 +18,6 @@ class BossMetricsPreviousKillsOverlay extends Overlay
     private final Client client;
     private final BossMetricsPlugin plugin;
     private final PanelComponent panelComponent = new PanelComponent();
-    private BossMetricsSession session;
 
     @Inject
     BossMetricsPreviousKillsOverlay(Client client, BossMetricsConfig config, BossMetricsPlugin plugin)
@@ -27,12 +26,12 @@ class BossMetricsPreviousKillsOverlay extends Overlay
         this.config = config;
         this.plugin = plugin;
         this.client = client;
-        this.session = plugin.getSession();
     }
 
     @Override
     public Dimension render(Graphics2D graphics)
     {
+        final BossMetricsSession session = plugin.getSession();
         panelComponent.getChildren().clear();
 
         panelComponent.getChildren().add(TitleComponent.builder()
