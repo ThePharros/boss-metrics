@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,8 +34,9 @@ class BossMetricsSession
     @Getter
     private BossMetricsTimer killTimer;
 
-    BossMetricsSession(BossMetricsPlugin plugin, BossMetricsMonster currentMonster) {
-        previousKillTimes = new ArrayList<>(Arrays.asList(0,0,0,0,0,0));
+    BossMetricsSession(BossMetricsPlugin plugin, BossMetricsMonster currentMonster)
+    {
+        previousKillTimes = new ArrayList<>(Arrays.asList(0, 0, 0, 0, 0, 0));
         killTimer = new BossMetricsTimer();
         this.sessionTimeoutStart = Instant.EPOCH;
         this.currentMonster = currentMonster;

@@ -2,6 +2,7 @@ package pharros.bossmetrics;
 
 import java.time.Duration;
 import java.time.Instant;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -15,13 +16,15 @@ class BossMetricsTimer
     private Instant startTime;
     private int delay;
 
-    BossMetricsTimer() {
+    BossMetricsTimer()
+    {
         currSeconds = 0;
         delay = 0;
         isActive = false;
     }
 
-    void start(int delay) {
+    void start(int delay)
+    {
         log.info("Timer started!");
         this.delay = delay;
         startTime = Instant.now();

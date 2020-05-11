@@ -1,11 +1,13 @@
 package pharros.bossmetrics;
 
 import com.google.inject.Provides;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.inject.Inject;
+
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -54,8 +56,8 @@ public class BossMetricsPlugin extends Plugin
     @Getter(AccessLevel.PACKAGE)
     private BossMetricsState state = BossMetricsState.NO_SESSION;
 
-	private long lastTickMillis = 0;
-	private Duration timeSince = Duration.ofSeconds(0);
+    private long lastTickMillis = 0;
+    private Duration timeSince = Duration.ofSeconds(0);
     private static final Pattern KILL_DURATION_PATTERN = Pattern.compile("(?i)^(?:Fight |Lap |Challenge |Corrupted challenge )?duration: <col=ff0000>([0-9:]+)</col>\\. Personal best: [0-9:]+");
     private static final Pattern NEW_PB_PATTERN = Pattern.compile("(?i)^(?:Fight |Lap |Challenge |Corrupted challenge )?duration: <col=ff0000>([0-9:]+)</col> \\(new personal best\\)");
     private static final Pattern KILLCOUNT_PATTERN = Pattern.compile("Your (.+) (?:kill|harvest|lap|completion) count is: <col=ff0000>(\\d+)</col>");
@@ -84,15 +86,16 @@ public class BossMetricsPlugin extends Plugin
     }
 
     @Subscribe
-	public void onAnimationChanged(AnimationChanged event)
-	{
-    	//log.info("ANIMCHANGED > ACTOR: 	" + event.getActor().getName() + ", ID: " + event.getActor().getAnimation());
+    public void onAnimationChanged(AnimationChanged event)
+    {
+        //log.info("ANIMCHANGED > ACTOR: 	" + event.getActor().getName() + ", ID: " + event.getActor().getAnimation());
 
-		//Grotesque Guardians
-		if (session != null && event.getActor().getAnimation() == 390) {
-			startPbTimer(3);
-		}
-	}
+        //Grotesque Guardians
+        if (session != null && event.getActor().getAnimation() == 390)
+        {
+            startPbTimer(3);
+        }
+    }
 
     @Subscribe
     public void onChatMessage(ChatMessage chatMessage)
@@ -109,7 +112,6 @@ public class BossMetricsPlugin extends Plugin
                 if (boss.equals(session.getCurrentMonster().getName()))
                 {
                     session.incrementKc();
-
                 }
             }
 
@@ -191,12 +193,12 @@ public class BossMetricsPlugin extends Plugin
     @Subscribe
     public void onGameTick(GameTick tick)
     {
-		//log.info(state.toString());
+        //log.info(state.toString());
         updateBossMetricsState();
         if (session != null)
         {
-			session.getKillTimer().update();
-		}
+            session.getKillTimer().update();
+        }
     }
 
     private void updateBossMetricsState()
@@ -232,7 +234,7 @@ public class BossMetricsPlugin extends Plugin
                 timeSince = Duration.between(session.getSessionTimeoutStart(), Instant.now());
                 long diff = System.currentTimeMillis() - lastTickMillis;
                 log.info("TICKMILLIS DIFF = " + diff);
-                int time = (int) (((long) config.getTimerOffset() * 1000 - timeSince.toMillis() - diff) / 1000d);
+                int time = (int)(((long)config.getTimerOffset() * 1000 - timeSince.toMillis() - diff) / 1000d);
                 session.setTimeoutTimeRemaining(time);
                 log.info("SESSION TIME REMAINING: " + time);
                 lastTickMillis = System.currentTimeMillis();
@@ -307,17 +309,17 @@ public class BossMetricsPlugin extends Plugin
         return String.format("%d:%02d", minutes, seconds);
     }
 
-	String getDisplayTimeRemaining(int secs)
-	{
-		int seconds = secs % 60;
-		int minutes = secs % 3600 / 60;
-		int hours = secs / 3600;
-		if (hours > 0)
-		{
-			return String.format("%d:%02d:%02d", hours, minutes, seconds);
-		}
-		return String.format("%d:%02d", minutes, seconds);
-	}
+    String getDisplayTimeRemaining(int secs)
+    {
+        int seconds = secs % 60;
+        int minutes = secs % 3600 / 60;
+        int hours = secs / 3600;
+        if (hours > 0)
+        {
+            return String.format("%d:%02d:%02d", hours, minutes, seconds);
+        }
+        return String.format("%d:%02d", minutes, seconds);
+    }
 
 
     private static int timeStringToSeconds(String timeString)
