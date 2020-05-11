@@ -13,15 +13,17 @@ class BossMetricsTimer
 
     private boolean isActive;
     private Instant startTime;
+    private int delay;
 
     BossMetricsTimer() {
         currSeconds = 0;
+        delay = 0;
         isActive = false;
     }
 
     void start(int delay) {
         log.info("Timer started!");
-        currSeconds = -delay;
+        this.delay = delay;
         startTime = Instant.now();
         isActive = true;
     }
@@ -31,7 +33,7 @@ class BossMetricsTimer
         if (isActive)
         {
             Duration timeSince = Duration.between(startTime, Instant.now());
-            currSeconds = timeSince.getSeconds();
+            currSeconds = timeSince.getSeconds() - delay;
             log.info("Timer's current seconds: " + currSeconds);
         }
     }

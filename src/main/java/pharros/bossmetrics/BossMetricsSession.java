@@ -57,4 +57,9 @@ class BossMetricsSession
         previousKillTimes.add(0, (int)seconds);
         previousKillTimes.remove(5);
     }
+
+    void setPb(int newPb)
+    {
+        personalBest = newPb;
+    }
 }

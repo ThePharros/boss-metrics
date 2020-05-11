@@ -70,9 +70,7 @@ public class BossMetricsPlugin extends Plugin
     @Override
     protected void shutDown()
     {
-        overlayManager.remove(overlay);
-        overlayManager.remove(previousKillsOverlay);
-        session = null;
+        expireSession();
         log.info("Boss Metrics plugin stopped!");
     }
 
@@ -81,7 +79,7 @@ public class BossMetricsPlugin extends Plugin
     {
         if (gameStateChanged.getGameState() == GameState.LOGGED_IN)
         {
-            //personalBest = getPb(currentMonster.getName());
+            //gamestatechanged logic here
         }
     }
 
@@ -201,26 +199,6 @@ public class BossMetricsPlugin extends Plugin
 		}
     }
 
-    private void setPb(String boss, int seconds)
-    {
-        configManager.setConfiguration("personalbest." + client.getUsername().toLowerCase(),
-            boss.toLowerCase(), seconds);
-    }
-
-    private static int timeStringToSeconds(String timeString)
-    {
-        String[] s = timeString.split(":");
-        if (s.length == 2) // mm:ss
-        {
-            return Integer.parseInt(s[0]) * 60 + Integer.parseInt(s[1]);
-        }
-        else if (s.length == 3) // h:mm:ss
-        {
-            return Integer.parseInt(s[0]) * 60 * 60 + Integer.parseInt(s[1]) * 60 + Integer.parseInt(s[2]);
-        }
-        return Integer.parseInt(timeString);
-    }
-
     private void updateBossMetricsState()
     {
         if (client.getLocalPlayer() != null)
@@ -298,6 +276,20 @@ public class BossMetricsPlugin extends Plugin
         return personalBest == null ? 0 : personalBest;
     }
 
+    void startPbTimer(int delay)
+    {
+        session.getKillTimer().start(delay);
+    }
+
+    private void expireSession()
+    {
+        overlayManager.remove(overlay);
+        overlayManager.remove(previousKillsOverlay);
+        session = null;
+        setState(BossMetricsState.NO_SESSION);
+        log.info("SESSION EXPIRED");
+    }
+
     String getDisplayTime(int secs)
     {
         if (secs <= 0)
@@ -327,18 +319,19 @@ public class BossMetricsPlugin extends Plugin
 		return String.format("%d:%02d", minutes, seconds);
 	}
 
-    void startPbTimer(int delay)
-    {
-        session.getKillTimer().start(delay);
-    }
 
-    private void expireSession()
+    private static int timeStringToSeconds(String timeString)
     {
-        overlayManager.remove(overlay);
-        overlayManager.remove(previousKillsOverlay);
-        session = null;
-        setState(BossMetricsState.NO_SESSION);
-        log.info("SESSION EXPIRED");
+        String[] s = timeString.split(":");
+        if (s.length == 2) // mm:ss
+        {
+            return Integer.parseInt(s[0]) * 60 + Integer.parseInt(s[1]);
+        }
+        else if (s.length == 3) // h:mm:ss
+        {
+            return Integer.parseInt(s[0]) * 60 * 60 + Integer.parseInt(s[1]) * 60 + Integer.parseInt(s[2]);
+        }
+        return Integer.parseInt(timeString);
     }
 
     @Provides
