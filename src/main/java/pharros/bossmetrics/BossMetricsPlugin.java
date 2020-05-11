@@ -19,7 +19,6 @@ import net.runelite.api.events.AnimationChanged;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ChatMessage;
-import net.runelite.api.events.NpcSpawned;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
@@ -193,12 +192,18 @@ public class BossMetricsPlugin extends Plugin
     @Subscribe
     public void onGameTick(GameTick tick)
     {
+        if (lastTickMillis == 0)
+        {
+            lastTickMillis = System.currentTimeMillis();
+        }
         //log.info(state.toString());
         updateBossMetricsState();
         if (session != null)
         {
-            session.getKillTimer().update();
+
+            session.getKillTimer().update(lastTickMillis);
         }
+        lastTickMillis = System.currentTimeMillis();
     }
 
     private void updateBossMetricsState()
@@ -227,18 +232,13 @@ public class BossMetricsPlugin extends Plugin
             //not in boss area and in timeout
             if (newMonster == null && state == BossMetricsState.IN_SESSION_TIMEOUT)
             {
-                if (lastTickMillis == 0)
-                {
-                    lastTickMillis = System.currentTimeMillis();
-                }
                 timeSince = Duration.between(session.getSessionTimeoutStart(), Instant.now());
                 long diff = System.currentTimeMillis() - lastTickMillis;
-                log.info("TICKMILLIS DIFF = " + diff);
-                int time = (int)(((long)config.getTimerOffset() * 1000 - timeSince.toMillis() - diff) / 1000d);
+                //log.info("TICKMILLIS DIFF = " + diff);
+                int time = (int)(((long)config.sessionTimeout() * 1000 - timeSince.toMillis() - diff) / 1000d);
                 session.setTimeoutTimeRemaining(time);
-                log.info("SESSION TIME REMAINING: " + time);
-                lastTickMillis = System.currentTimeMillis();
-                if (timeSince.getSeconds() >= config.getTimerOffset())
+                //log.info("SESSION TIME REMAINING: " + time);
+                if (timeSince.getSeconds() >= config.sessionTimeout())
                 {
                     expireSession();
                 }
@@ -251,7 +251,7 @@ public class BossMetricsPlugin extends Plugin
                 setState(BossMetricsState.IN_SESSION);
                 session = new BossMetricsSession(this, newMonster);
                 overlayManager.add(overlay);
-                if (config.getPreviousKillAmount() > 0)
+                if (config.previousKillAmount() > 0)
                 {
                     overlayManager.add(previousKillsOverlay);
                 }

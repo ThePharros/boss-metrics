@@ -31,12 +31,14 @@ class BossMetricsTimer
         isActive = true;
     }
 
-    void update()
+    void update(long lastTick)
     {
         if (isActive)
         {
             Duration timeSince = Duration.between(startTime, Instant.now());
-            currSeconds = timeSince.getSeconds() - delay;
+            long diff = System.currentTimeMillis() - lastTick;
+            int time = (int)Math.round((timeSince.toMillis() - diff) / 1000d);
+            currSeconds = time - delay + 1; //add 1 to offset the initial second
             log.info("Timer's current seconds: " + currSeconds);
         }
     }
@@ -45,7 +47,7 @@ class BossMetricsTimer
     {
         if (isActive)
         {
-            log.info("STOPPING TIMER WITH CURRENT SECONDS OF: " + currSeconds);
+            //log.info("STOPPING TIMER WITH CURRENT SECONDS OF: " + currSeconds);
             isActive = false;
         }
     }

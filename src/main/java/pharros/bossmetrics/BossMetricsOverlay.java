@@ -20,6 +20,7 @@ class BossMetricsOverlay extends Overlay
     @Inject
     BossMetricsOverlay(Client client, BossMetricsConfig config, BossMetricsPlugin plugin)
     {
+        setPosition(OverlayPosition.DYNAMIC);
         setPosition(OverlayPosition.TOP_RIGHT);
         this.config = config;
         this.plugin = plugin;
@@ -48,12 +49,15 @@ class BossMetricsOverlay extends Overlay
             .color(Color.WHITE)
             .build());
 
-        panelComponent.getChildren().add(LineComponent.builder()
-            .left("")
-            .leftColor(Color.WHITE)
-            .right("")
-            .rightColor(Color.WHITE)
-            .build());
+        if (config.showSessionKillCount() || config.showPersonalBest() || config.showApproximateTime())
+        {
+            panelComponent.getChildren().add(LineComponent.builder()
+                .left("")
+                .leftColor(Color.WHITE)
+                .right("")
+                .rightColor(Color.WHITE)
+                .build());
+        }
 
         if (config.showSessionKillCount())
         {
@@ -65,26 +69,33 @@ class BossMetricsOverlay extends Overlay
                 .build());
         }
 
-        String strPersonalBest = plugin.getDisplayTime(session.getPersonalBest());
-        panelComponent.getChildren().add(LineComponent.builder()
-            .left("Personal best:")
-            .leftColor(Color.WHITE)
-            .right(strPersonalBest)
-            .rightColor(Color.YELLOW)
-            .build());
-
-        Color currTimeColor = Color.GREEN;
-        if (session.getKillTimer().getCurrSeconds() >= session.getPersonalBest())
+        if (config.showPersonalBest())
         {
-            currTimeColor = Color.WHITE;
+            String strPersonalBest = plugin.getDisplayTime(session.getPersonalBest());
+            panelComponent.getChildren().add(LineComponent.builder()
+                .left("Personal best:")
+                .leftColor(Color.WHITE)
+                .right(strPersonalBest)
+                .rightColor(Color.YELLOW)
+                .build());
         }
-        String strCurrentTime = plugin.getDisplayTime((int)session.getKillTimer().getCurrSeconds());
-        panelComponent.getChildren().add(LineComponent.builder()
-            .left("Approx. time:")
-            .leftColor(Color.WHITE)
-            .right(strCurrentTime)
-            .rightColor(currTimeColor)
-            .build());
+
+        if (config.showApproximateTime())
+        {
+            Color currTimeColor = Color.GREEN;
+            if (session.getKillTimer().getCurrSeconds() >= session.getPersonalBest())
+            {
+                currTimeColor = Color.WHITE;
+            }
+            String strCurrentTime = plugin.getDisplayTime((int)session.getKillTimer().getCurrSeconds());
+            panelComponent.getChildren().add(LineComponent.builder()
+                .left("Approx. time:")
+                .leftColor(Color.WHITE)
+                .right(strCurrentTime)
+                .rightColor(currTimeColor)
+                .build());
+        }
+
         return panelComponent.render(graphics);
     }
 }
