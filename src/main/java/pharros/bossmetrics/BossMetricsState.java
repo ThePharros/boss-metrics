@@ -8,7 +8,7 @@ import lombok.Getter;
 @Getter(AccessLevel.PACKAGE)
 enum BossMetricsState
 {
-    NO_SESSION,
-    IN_SESSION,
-    IN_SESSION_TIMEOUT,
+	NO_SESSION,
+	IN_SESSION,
+	IN_SESSION_TIMEOUT,
 }

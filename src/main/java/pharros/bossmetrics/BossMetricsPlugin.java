@@ -1,19 +1,15 @@
 package pharros.bossmetrics;
 
 import com.google.inject.Provides;
-
-import java.time.Duration;
-import java.time.Instant;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.inject.Inject;
-
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.ChatMessageType;
-import net.runelite.api.GameState;
+import net.runelite.api.Constants;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.AnimationChanged;
 import net.runelite.api.events.GameStateChanged;
@@ -27,112 +23,119 @@ import net.runelite.client.ui.overlay.OverlayManager;
 
 @Slf4j
 @PluginDescriptor(
-    name = "Boss Metrics"
+	name = "Boss Metrics"
 )
 public class BossMetricsPlugin extends Plugin
 {
-    @Inject
-    private Client client;
+	@Inject
+	private Client client;
 
-    @Inject
-    private BossMetricsConfig config;
+	@Inject
+	private BossMetricsConfig config;
 
-    @Inject
-    private ConfigManager configManager;
+	@Inject
+	private ConfigManager configManager;
 
-    @Inject
-    private OverlayManager overlayManager;
+	@Inject
+	private OverlayManager overlayManager;
 
-    @Inject
-    private BossMetricsOverlay overlay;
+	@Inject
+	private BossMetricsOverlay overlay;
 
-    @Inject
-    private BossMetricsPreviousKillsOverlay previousKillsOverlay;
+	@Inject
+	private BossMetricsPreviousKillsOverlay previousKillsOverlay;
 
-    @Getter(AccessLevel.PACKAGE)
-    private BossMetricsSession session = null;
+	@Getter(AccessLevel.PACKAGE)
+	private BossMetricsSession session = null;
 
-    @Getter(AccessLevel.PACKAGE)
-    private BossMetricsState state = BossMetricsState.NO_SESSION;
+	@Getter(AccessLevel.PACKAGE)
+	private BossMetricsState state = BossMetricsState.NO_SESSION;
 
-    private long lastTickMillis = 0;
-    private Duration timeSince = Duration.ofSeconds(0);
-    private static final Pattern KILL_DURATION_PATTERN = Pattern.compile("(?i)^(?:Fight |Lap |Challenge |Corrupted challenge )?duration: <col=ff0000>([0-9:]+)</col>\\. Personal best: [0-9:]+");
-    private static final Pattern NEW_PB_PATTERN = Pattern.compile("(?i)^(?:Fight |Lap |Challenge |Corrupted challenge )?duration: <col=ff0000>([0-9:]+)</col> \\(new personal best\\)");
-    private static final Pattern KILLCOUNT_PATTERN = Pattern.compile("Your (.+) (?:kill|harvest|lap|completion) count is: <col=ff0000>(\\d+)</col>");
+	private BossMetricsMonster newMonster = null;
 
-    @Override
-    protected void startUp()
-    {
-        log.info("Boss Metrics plugin started!");
-        updateBossMetricsState();
-    }
+	private long lastTickMillis = 0;
+	private int lastChangeDown = -1;
+	private int lastChangeUp = -1;
+	private static final Pattern KILL_DURATION_PATTERN = Pattern.compile("(?i)^(?:Fight |Lap |Challenge |Corrupted challenge )?duration: <col=ff0000>([0-9:]+)</col>\\. Personal best: [0-9:]+");
+	private static final Pattern NEW_PB_PATTERN = Pattern.compile("(?i)^(?:Fight |Lap |Challenge |Corrupted challenge )?duration: <col=ff0000>([0-9:]+)</col> \\(new personal best\\)");
+	private static final Pattern KILLCOUNT_PATTERN = Pattern.compile("Your (.+) (?:kill|harvest|lap|completion) count is: <col=ff0000>(\\d+)</col>");
 
-    @Override
-    protected void shutDown()
-    {
-        expireSession();
-        log.info("Boss Metrics plugin stopped!");
-    }
+	@Override
+	protected void startUp()
+	{
+		log.info("Boss Metrics plugin started!");
+		updateBossMetricsState();
+	}
 
-    @Subscribe
-    public void onGameStateChanged(GameStateChanged gameStateChanged)
-    {
-        if (gameStateChanged.getGameState() == GameState.LOGGED_IN)
-        {
-            //gamestatechanged logic here
-        }
-    }
+	@Override
+	protected void shutDown()
+	{
+		expireSession();
+		log.info("Boss Metrics plugin stopped!");
+	}
 
-    @Subscribe
-    public void onAnimationChanged(AnimationChanged event)
-    {
-        //log.info("ANIMCHANGED > ACTOR: 	" + event.getActor().getName() + ", ID: " + event.getActor().getAnimation());
+	@Subscribe
+	public void onGameStateChanged(GameStateChanged event)
+	{
+		switch (event.getGameState())
+		{
+			case LOGIN_SCREEN:
+			case HOPPING:
+				// After world hop and log out timers are in undefined state so just reset
+				lastChangeDown = -1;
+				lastChangeUp = -1;
+		}
+	}
 
-        //Grotesque Guardians
-        if (session != null && event.getActor().getAnimation() == 390)
-        {
-            startPbTimer(3);
-        }
-    }
+	@Subscribe
+	public void onAnimationChanged(AnimationChanged event)
+	{
+		//log.info("ANIMCHANGED > ACTOR: 	" + event.getActor().getName() + ", ID: " + event.getActor().getAnimation());
 
-    @Subscribe
-    public void onChatMessage(ChatMessage chatMessage)
-    {
-        if (session != null && chatMessage.getType() == ChatMessageType.GAMEMESSAGE)
-        {
-            String message = chatMessage.getMessage();
+		//Grotesque Guardians
+		if (session != null && event.getActor().getAnimation() == 390)
+		{
+			startPbTimer(3);
+		}
+	}
 
-            Matcher matcher = KILLCOUNT_PATTERN.matcher(message);
-            if (matcher.find())
-            {
-                log.info("KILL COUNT PATTERN FOUND, MATCHER GROUP 1 IS " + matcher.group(1));
-                String boss = matcher.group(1);
-                if (boss.equals(session.getCurrentMonster().getName()))
-                {
-                    session.incrementKc();
-                }
-            }
+	@Subscribe
+	public void onChatMessage(ChatMessage chatMessage)
+	{
+		if (session != null && chatMessage.getType() == ChatMessageType.GAMEMESSAGE)
+		{
+			String message = chatMessage.getMessage();
 
-            matcher = KILL_DURATION_PATTERN.matcher(message);
-            if (matcher.find())
-            {
-                log.info("KILL DUR PATTERN FOUND. MATCHER GROUP 1 = " + matcher.group(1));
-                int seconds = timeStringToSeconds(matcher.group(1));
-                session.recordPreviousTime(seconds);
-                session.getKillTimer().stop();
-            }
+			Matcher matcher = KILLCOUNT_PATTERN.matcher(message);
+			if (matcher.find())
+			{
+				log.info("KILL COUNT PATTERN FOUND, MATCHER GROUP 1 IS " + matcher.group(1));
+				String boss = matcher.group(1);
+				if (boss.equals(session.getCurrentMonster().getName()))
+				{
+					session.incrementKc();
+				}
+			}
 
-            matcher = NEW_PB_PATTERN.matcher(message);
-            if (matcher.find())
-            {
-                log.info("NEW PB PATTERN FOUND. MATCHER GROUP 1 = " + matcher.group(1));
-                int seconds = timeStringToSeconds(matcher.group(1));
-                session.recordPreviousTime(seconds);
-                session.getKillTimer().stop();
-            }
-        }
-    }
+			matcher = KILL_DURATION_PATTERN.matcher(message);
+			if (matcher.find())
+			{
+				log.info("KILL DUR PATTERN FOUND. MATCHER GROUP 1 = " + matcher.group(1));
+				int seconds = timeStringToSeconds(matcher.group(1));
+				session.recordPreviousTime(seconds);
+				session.getKillTimer().stop();
+			}
+
+			matcher = NEW_PB_PATTERN.matcher(message);
+			if (matcher.find())
+			{
+				log.info("NEW PB PATTERN FOUND. MATCHER GROUP 1 = " + matcher.group(1));
+				int seconds = timeStringToSeconds(matcher.group(1));
+				session.recordPreviousTime(seconds);
+				session.getKillTimer().stop();
+			}
+		}
+	}
 
 	/*
 	@Subscribe
@@ -189,156 +192,189 @@ public class BossMetricsPlugin extends Plugin
 	}
 	 */
 
-    @Subscribe
-    public void onGameTick(GameTick tick)
-    {
-        if (lastTickMillis == 0)
-        {
-            lastTickMillis = System.currentTimeMillis();
-        }
-        //log.info(state.toString());
-        updateBossMetricsState();
-        if (session != null)
-        {
+	@Subscribe
+	public void onGameTick(GameTick tick)
+	{
+		lastTickMillis = System.currentTimeMillis();
+		updateBossMetricsState();
+		if (session != null)
+		{
+			session.getKillTimer().update(lastTickMillis);
+		}
+	}
 
-            session.getKillTimer().update(lastTickMillis);
-        }
-        lastTickMillis = System.currentTimeMillis();
-    }
+	private void updateBossMetricsState()
+	{
+		if (client.getLocalPlayer() != null)
+		{
+			//get player's current region ID
+			final int playerRegionID = WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()).getRegionID();
 
-    private void updateBossMetricsState()
-    {
-        if (client.getLocalPlayer() != null)
-        {
-            //get player's current region ID
-            final int playerRegionID = WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()).getRegionID();
+			if (playerRegionID == 0)
+			{
+				return;
+			}
 
-            if (playerRegionID == 0)
-            {
-                return;
-            }
+			//is player in a plugin-valid boss region?
+			newMonster = BossMetricsMonster.fromRegion(playerRegionID);
 
-            //is player in a plugin-valid boss region?
-            BossMetricsMonster newMonster = BossMetricsMonster.fromRegion(playerRegionID);
+			//leaving boss area, start timeout
+			if (newMonster == null && state == BossMetricsState.IN_SESSION)
+			{
+				log.info("START SESSION TIMEOUT");
+				setState(BossMetricsState.IN_SESSION_TIMEOUT);
+			}
 
-            //leaving boss area, start timeout
-            if (newMonster == null && state == BossMetricsState.IN_SESSION)
-            {
-                log.info("START SESSION TIMEOUT");
-                setState(BossMetricsState.IN_SESSION_TIMEOUT);
-                session.updateSessionTimeoutStart();
-            }
+			//not in boss area and in timeout
+			if (newMonster == null && state == BossMetricsState.IN_SESSION_TIMEOUT)
+			{
+				log.info("TIME REMAINING: " + getChangeTime(getChangeDownTicks()));
+				final int sessionTimeRemaining = getChangeTime(getChangeDownTicks());
+				session.setSessionTimeRemaining(sessionTimeRemaining);
+				if (sessionTimeRemaining <= 0)
+				{
+					expireSession();
+				}
+			}
 
-            //not in boss area and in timeout
-            if (newMonster == null && state == BossMetricsState.IN_SESSION_TIMEOUT)
-            {
-                timeSince = Duration.between(session.getSessionTimeoutStart(), Instant.now());
-                long diff = System.currentTimeMillis() - lastTickMillis;
-                //log.info("TICKMILLIS DIFF = " + diff);
-                int time = (int)(((long)config.sessionTimeout() * 1000 - timeSince.toMillis() - diff) / 1000d);
-                session.setTimeoutTimeRemaining(time);
-                //log.info("SESSION TIME REMAINING: " + time);
-                if (timeSince.getSeconds() >= config.sessionTimeout())
-                {
-                    expireSession();
-                }
-            }
+			//entered boss area for first time
+			if (newMonster != null && state == BossMetricsState.NO_SESSION)
+			{
+				log.info("NEW MONSTER IS: " + newMonster);
+				setState(BossMetricsState.IN_SESSION);
+			}
 
-            //entered boss area for first time
-            if (newMonster != null && state == BossMetricsState.NO_SESSION)
-            {
-                log.info("NEW MONSTER IS: " + newMonster);
-                setState(BossMetricsState.IN_SESSION);
-                session = new BossMetricsSession(this, newMonster);
-                overlayManager.add(overlay);
-                if (config.previousKillAmount() > 0)
-                {
-                    overlayManager.add(previousKillsOverlay);
-                }
-            }
+			//entered boss area during session timeout
+			if (newMonster != null && state == BossMetricsState.IN_SESSION_TIMEOUT)
+			{
+				log.info("EXPIRE SESSION TIMEOUT");
+				setState(BossMetricsState.IN_SESSION);
+			}
+		}
+	}
 
-            //entered boss area during session timeout
-            if (newMonster != null && state == BossMetricsState.IN_SESSION_TIMEOUT)
-            {
-                setState(BossMetricsState.IN_SESSION);
-                timeSince = Duration.ofSeconds(0);
-            }
-        }
-    }
+	private void onBossMetricsStateChanged(BossMetricsState state)
+	{
+		switch(state)
+		{
+			case NO_SESSION:
+				break;
+			case IN_SESSION:
+				if (session == null)
+				{
+					startSession();
+				}
+				break;
+			case IN_SESSION_TIMEOUT:
+				lastChangeDown = client.getTickCount();
+				break;
+		}
+	}
 
-    private void setState(BossMetricsState newState)
-    {
-        state = newState;
-    }
+	private void setState(BossMetricsState newState)
+	{
+		state = newState;
+		onBossMetricsStateChanged(state);
+	}
 
-    int getPb(String boss)
-    {
-        Integer personalBest = configManager.getConfiguration("personalbest." + client.getUsername().toLowerCase(),
-            boss.toLowerCase(), int.class);
-        return personalBest == null ? 0 : personalBest;
-    }
+	int getPb(String boss)
+	{
+		Integer personalBest = configManager.getConfiguration("personalbest." + client.getUsername().toLowerCase(),
+			boss.toLowerCase(), int.class);
+		return personalBest == null ? 0 : personalBest;
+	}
 
-    void startPbTimer(int delay)
-    {
-        session.getKillTimer().start(delay);
-    }
+	void startPbTimer(int delay)
+	{
+		session.getKillTimer().start(delay);
+	}
 
-    private void expireSession()
-    {
-        overlayManager.remove(overlay);
-        overlayManager.remove(previousKillsOverlay);
-        session = null;
-        setState(BossMetricsState.NO_SESSION);
-        log.info("SESSION EXPIRED");
-    }
+	private void startSession()
+	{
+		session = new BossMetricsSession(this, newMonster);
+		overlayManager.add(overlay);
+		if (config.previousKillAmount() > 0)
+		{
+			overlayManager.add(previousKillsOverlay);
+		}
+	}
 
-    String getDisplayTime(int secs)
-    {
-        if (secs <= 0)
-        {
-            return "-:--";
-        }
+	private void expireSession()
+	{
+		overlayManager.remove(overlay);
+		overlayManager.remove(previousKillsOverlay);
+		session = null;
+		setState(BossMetricsState.NO_SESSION);
+		lastChangeDown = -1;
+		lastChangeUp = -1;
+		log.info("SESSION EXPIRED");
+	}
 
-        int seconds = secs % 60;
-        int minutes = secs % 3600 / 60;
-        int hours = secs / 3600;
-        if (hours > 0)
-        {
-            return String.format("%d:%02d:%02d", hours, minutes, seconds);
-        }
-        return String.format("%d:%02d", minutes, seconds);
-    }
+	String getDisplayTime(int secs)
+	{
+		if (secs <= 0)
+		{
+			return "-:--";
+		}
 
-    String getDisplayTimeRemaining(int secs)
-    {
-        int seconds = secs % 60;
-        int minutes = secs % 3600 / 60;
-        int hours = secs / 3600;
-        if (hours > 0)
-        {
-            return String.format("%d:%02d:%02d", hours, minutes, seconds);
-        }
-        return String.format("%d:%02d", minutes, seconds);
-    }
+		int seconds = secs % 60;
+		int minutes = secs % 3600 / 60;
+		int hours = secs / 3600;
+		if (hours > 0)
+		{
+			return String.format("%d:%02d:%02d", hours, minutes, seconds);
+		}
+		return String.format("%d:%02d", minutes, seconds);
+	}
+
+	String getDisplayTimeRemaining(int secs)
+	{
+		int seconds = secs % 60;
+		int minutes = secs % 3600 / 60;
+		int hours = secs / 3600;
+		if (hours > 0)
+		{
+			return String.format("%d:%02d:%02d", hours, minutes, seconds);
+		}
+		return String.format("%d:%02d", minutes, seconds);
+	}
+
+	int getChangeDownTicks()
+	{
+		if (lastChangeDown == -1)
+		{
+			return -1;
+		}
+
+		int ticksSinceChange = client.getTickCount() - lastChangeDown;
+
+		return 100*config.sessionTimeout()/60 - ticksSinceChange;
+	}
+
+	int getChangeTime(final int time)
+	{
+		final long diff = System.currentTimeMillis() - lastTickMillis;
+		return time != -1 ? (int)((time * Constants.GAME_TICK_LENGTH - diff) / 1000d) : time;
+	}
 
 
-    private static int timeStringToSeconds(String timeString)
-    {
-        String[] s = timeString.split(":");
-        if (s.length == 2) // mm:ss
-        {
-            return Integer.parseInt(s[0]) * 60 + Integer.parseInt(s[1]);
-        }
-        else if (s.length == 3) // h:mm:ss
-        {
-            return Integer.parseInt(s[0]) * 60 * 60 + Integer.parseInt(s[1]) * 60 + Integer.parseInt(s[2]);
-        }
-        return Integer.parseInt(timeString);
-    }
+	private static int timeStringToSeconds(String timeString)
+	{
+		String[] s = timeString.split(":");
+		if (s.length == 2) // mm:ss
+		{
+			return Integer.parseInt(s[0]) * 60 + Integer.parseInt(s[1]);
+		}
+		else if (s.length == 3) // h:mm:ss
+		{
+			return Integer.parseInt(s[0]) * 60 * 60 + Integer.parseInt(s[1]) * 60 + Integer.parseInt(s[2]);
+		}
+		return Integer.parseInt(timeString);
+	}
 
-    @Provides
-    BossMetricsConfig provideConfig(ConfigManager configManager)
-    {
-        return configManager.getConfig(BossMetricsConfig.class);
-    }
+	@Provides
+	BossMetricsConfig provideConfig(ConfigManager configManager)
+	{
+		return configManager.getConfig(BossMetricsConfig.class);
+	}
 }
