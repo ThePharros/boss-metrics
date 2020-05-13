@@ -29,10 +29,12 @@ class BossMetricsSession
 	@Getter
 	private BossMetricsTimer killTimer;
 
+	@Getter
+	private BossMetricsTimer timeoutTimer;
+
 	BossMetricsSession(BossMetricsPlugin plugin, BossMetricsMonster currentMonster)
 	{
 		previousKillTimes = new ArrayList<>(Arrays.asList(0, 0, 0, 0, 0, 0));
-		killTimer = new BossMetricsTimer();
 		this.currentMonster = currentMonster;
 		this.personalBest = plugin.getPb(currentMonster.getName());
 		log.info("SESSION STARTED FOR " + currentMonster.getName());
@@ -52,5 +54,19 @@ class BossMetricsSession
 	void setPb(int newPb)
 	{
 		personalBest = newPb;
+	}
+
+	void startTimeoutTimer(int period)
+	{
+		timeoutTimer = new BossMetricsTimer(period);
+		if (killTimer != null && currentMonster.isMonsterInstance())
+		{
+			killTimer = null;
+		}
+	}
+
+	void startKillTimer()
+	{
+		killTimer = new BossMetricsTimer(-1);
 	}
 }

@@ -2,52 +2,58 @@ package pharros.bossmetrics;
 
 import java.time.Duration;
 import java.time.Instant;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 class BossMetricsTimer
 {
-	@Getter
-	private long currSeconds;
+	private final Instant startTime;
+	private final Instant endTime;
+	private final Duration duration;
+	private final long period;
 
-	private boolean isActive;
-	private Instant startTime;
-	private int delay;
-
-	BossMetricsTimer()
+	BossMetricsTimer(long period)
 	{
-		currSeconds = 0;
-		delay = 0;
-		isActive = false;
-	}
-
-	void start(int delay)
-	{
-		log.info("Timer started!");
-		this.delay = delay;
+		this.period = period;
 		startTime = Instant.now();
-		isActive = true;
-	}
-
-	void update(long lastTick)
-	{
-		if (isActive)
+		if (period == -1)
 		{
-			Duration timeSince = Duration.between(startTime, Instant.now());
-			long diff = System.currentTimeMillis() - lastTick;
-			int time = (int)Math.round((timeSince.toMillis() - diff) / 1000d);
-			currSeconds = time - delay + 1; //add 1 to offset the initial second
-			log.info("Timer's current seconds: " + currSeconds);
+			duration = Duration.ofSeconds(0);
+			endTime = Instant.now();
+		}
+		else
+		{
+			duration = Duration.ofSeconds(period);
+			endTime = startTime.plus(duration);
 		}
 	}
 
-	void stop()
+	protected Duration getTimeDuration()
 	{
-		if (isActive)
+		final Duration timeLeft;
+		if (period == -1)
 		{
-			//log.info("STOPPING TIMER WITH CURRENT SECONDS OF: " + currSeconds);
-			isActive = false;
+			timeLeft = Duration.between(startTime, Instant.now());
 		}
+		else
+		{
+			timeLeft = Duration.between(Instant.now(), endTime);
+		}
+		return timeLeft;
+	}
+
+	protected String getText()
+	{
+		int secs = (int)(getTimeDuration().toMillis() / 1000L);
+
+		int seconds = secs % 60;
+		int minutes = (secs % 3600) / 60;
+		int hours = secs / 3600;
+
+		if (hours > 0)
+		{
+			return String.format("%d:%02d:%02d", hours, minutes, seconds);
+		}
+		return String.format("%d:%02d", minutes, seconds);
 	}
 }

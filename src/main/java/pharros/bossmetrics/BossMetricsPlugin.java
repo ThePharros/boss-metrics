@@ -9,7 +9,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.ChatMessageType;
-import net.runelite.api.Constants;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.AnimationChanged;
 import net.runelite.api.events.GameStateChanged;
@@ -53,9 +52,6 @@ public class BossMetricsPlugin extends Plugin
 
 	private BossMetricsMonster newMonster = null;
 
-	private long lastTickMillis = 0;
-	private int lastChangeDown = -1;
-	private int lastChangeUp = -1;
 	private static final Pattern KILL_DURATION_PATTERN = Pattern.compile("(?i)^(?:Fight |Lap |Challenge |Corrupted challenge )?duration: <col=ff0000>([0-9:]+)</col>\\. Personal best: [0-9:]+");
 	private static final Pattern NEW_PB_PATTERN = Pattern.compile("(?i)^(?:Fight |Lap |Challenge |Corrupted challenge )?duration: <col=ff0000>([0-9:]+)</col> \\(new personal best\\)");
 	private static final Pattern KILLCOUNT_PATTERN = Pattern.compile("Your (.+) (?:kill|harvest|lap|completion) count is: <col=ff0000>(\\d+)</col>");
@@ -75,19 +71,6 @@ public class BossMetricsPlugin extends Plugin
 	}
 
 	@Subscribe
-	public void onGameStateChanged(GameStateChanged event)
-	{
-		switch (event.getGameState())
-		{
-			case LOGIN_SCREEN:
-			case HOPPING:
-				// After world hop and log out timers are in undefined state so just reset
-				lastChangeDown = -1;
-				lastChangeUp = -1;
-		}
-	}
-
-	@Subscribe
 	public void onAnimationChanged(AnimationChanged event)
 	{
 		//log.info("ANIMCHANGED > ACTOR: 	" + event.getActor().getName() + ", ID: " + event.getActor().getAnimation());
@@ -95,7 +78,7 @@ public class BossMetricsPlugin extends Plugin
 		//Grotesque Guardians
 		if (session != null && event.getActor().getAnimation() == 390)
 		{
-			startPbTimer(3);
+			session.startKillTimer();
 		}
 	}
 
@@ -123,7 +106,6 @@ public class BossMetricsPlugin extends Plugin
 				log.info("KILL DUR PATTERN FOUND. MATCHER GROUP 1 = " + matcher.group(1));
 				int seconds = timeStringToSeconds(matcher.group(1));
 				session.recordPreviousTime(seconds);
-				session.getKillTimer().stop();
 			}
 
 			matcher = NEW_PB_PATTERN.matcher(message);
@@ -132,7 +114,6 @@ public class BossMetricsPlugin extends Plugin
 				log.info("NEW PB PATTERN FOUND. MATCHER GROUP 1 = " + matcher.group(1));
 				int seconds = timeStringToSeconds(matcher.group(1));
 				session.recordPreviousTime(seconds);
-				session.getKillTimer().stop();
 			}
 		}
 	}
@@ -195,12 +176,7 @@ public class BossMetricsPlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick tick)
 	{
-		lastTickMillis = System.currentTimeMillis();
 		updateBossMetricsState();
-		if (session != null)
-		{
-			session.getKillTimer().update(lastTickMillis);
-		}
 	}
 
 	private void updateBossMetricsState()
@@ -228,10 +204,9 @@ public class BossMetricsPlugin extends Plugin
 			//not in boss area and in timeout
 			if (newMonster == null && state == BossMetricsState.IN_SESSION_TIMEOUT)
 			{
-				log.info("TIME REMAINING: " + getChangeTime(getChangeDownTicks()));
-				final int sessionTimeRemaining = getChangeTime(getChangeDownTicks());
-				session.setSessionTimeRemaining(sessionTimeRemaining);
-				if (sessionTimeRemaining <= 0)
+				final long timerSeconds = session.getTimeoutTimer().getTimeDuration().getSeconds();
+				log.info("TIME REMAINING: " + timerSeconds);
+				if (timerSeconds < 0)
 				{
 					expireSession();
 				}
@@ -255,7 +230,7 @@ public class BossMetricsPlugin extends Plugin
 
 	private void onBossMetricsStateChanged(BossMetricsState state)
 	{
-		switch(state)
+		switch (state)
 		{
 			case NO_SESSION:
 				break;
@@ -266,7 +241,7 @@ public class BossMetricsPlugin extends Plugin
 				}
 				break;
 			case IN_SESSION_TIMEOUT:
-				lastChangeDown = client.getTickCount();
+				session.startTimeoutTimer(config.sessionTimeout());
 				break;
 		}
 	}
@@ -282,11 +257,6 @@ public class BossMetricsPlugin extends Plugin
 		Integer personalBest = configManager.getConfiguration("personalbest." + client.getUsername().toLowerCase(),
 			boss.toLowerCase(), int.class);
 		return personalBest == null ? 0 : personalBest;
-	}
-
-	void startPbTimer(int delay)
-	{
-		session.getKillTimer().start(delay);
 	}
 
 	private void startSession()
@@ -305,8 +275,6 @@ public class BossMetricsPlugin extends Plugin
 		overlayManager.remove(previousKillsOverlay);
 		session = null;
 		setState(BossMetricsState.NO_SESSION);
-		lastChangeDown = -1;
-		lastChangeUp = -1;
 		log.info("SESSION EXPIRED");
 	}
 
@@ -320,43 +288,13 @@ public class BossMetricsPlugin extends Plugin
 		int seconds = secs % 60;
 		int minutes = secs % 3600 / 60;
 		int hours = secs / 3600;
+
 		if (hours > 0)
 		{
 			return String.format("%d:%02d:%02d", hours, minutes, seconds);
 		}
 		return String.format("%d:%02d", minutes, seconds);
 	}
-
-	String getDisplayTimeRemaining(int secs)
-	{
-		int seconds = secs % 60;
-		int minutes = secs % 3600 / 60;
-		int hours = secs / 3600;
-		if (hours > 0)
-		{
-			return String.format("%d:%02d:%02d", hours, minutes, seconds);
-		}
-		return String.format("%d:%02d", minutes, seconds);
-	}
-
-	int getChangeDownTicks()
-	{
-		if (lastChangeDown == -1)
-		{
-			return -1;
-		}
-
-		int ticksSinceChange = client.getTickCount() - lastChangeDown;
-
-		return 100*config.sessionTimeout()/60 - ticksSinceChange;
-	}
-
-	int getChangeTime(final int time)
-	{
-		final long diff = System.currentTimeMillis() - lastTickMillis;
-		return time != -1 ? (int)((time * Constants.GAME_TICK_LENGTH - diff) / 1000d) : time;
-	}
-
 
 	private static int timeStringToSeconds(String timeString)
 	{

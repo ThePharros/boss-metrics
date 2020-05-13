@@ -39,7 +39,8 @@ class BossMetricsOverlay extends Overlay
 			panelComponent.getChildren().add(LineComponent.builder()
 				.left("Timeout in:")
 				.leftColor(Color.WHITE)
-				.right(plugin.getDisplayTimeRemaining(plugin.getSession().getSessionTimeRemaining()))
+				//.right(plugin.getDisplayTimeRemaining(plugin.getSession().getSessionTimeRemaining()))
+				.right(plugin.getSession().getTimeoutTimer().getText())
 				.rightColor(Color.RED)
 				.build());
 		}
@@ -71,7 +72,7 @@ class BossMetricsOverlay extends Overlay
 
 		if (config.showPersonalBest())
 		{
-			String strPersonalBest = plugin.getDisplayTime(session.getPersonalBest());
+			String strPersonalBest = plugin.getDisplayTime(plugin.getSession().getPersonalBest());
 			panelComponent.getChildren().add(LineComponent.builder()
 				.left("Personal best:")
 				.leftColor(Color.WHITE)
@@ -82,20 +83,34 @@ class BossMetricsOverlay extends Overlay
 
 		if (config.showApproximateTime())
 		{
-			Color currTimeColor = Color.GREEN;
-			if (session.getKillTimer().getCurrSeconds() >= session.getPersonalBest())
+			if (session.getKillTimer() == null)
 			{
-				currTimeColor = Color.WHITE;
+				panelComponent.getChildren().add(LineComponent.builder()
+					.left("Approx. time:")
+					.leftColor(Color.WHITE)
+					.right("-:--")
+					.rightColor(Color.WHITE)
+					.build());
 			}
-			String strCurrentTime = plugin.getDisplayTime((int)session.getKillTimer().getCurrSeconds());
-			panelComponent.getChildren().add(LineComponent.builder()
-				.left("Approx. time:")
-				.leftColor(Color.WHITE)
-				.right(strCurrentTime)
-				.rightColor(currTimeColor)
-				.build());
+			else
+			{
+				final Color approxColor;
+				if (plugin.getSession().getKillTimer().getTimeDuration().getSeconds() >= plugin.getSession().getPersonalBest())
+				{
+					approxColor = Color.WHITE;
+				}
+				else
+				{
+					approxColor = Color.GREEN;
+				}
+				panelComponent.getChildren().add(LineComponent.builder()
+					.left("Approx. time:")
+					.leftColor(Color.WHITE)
+					.right(plugin.getSession().getKillTimer().getText())
+					.rightColor(approxColor)
+					.build());
+			}
 		}
-
 		return panelComponent.render(graphics);
 	}
 }
