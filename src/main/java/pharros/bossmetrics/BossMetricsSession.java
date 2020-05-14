@@ -2,7 +2,6 @@ package pharros.bossmetrics;
 
 import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,18 +22,17 @@ class BossMetricsSession
 	private int personalBest;
 
 	@Getter
-	@Setter
-	private int sessionTimeRemaining = -1;
-
-	@Getter
 	private BossMetricsTimer killTimer;
 
 	@Getter
 	private BossMetricsTimer timeoutTimer;
 
+	private BossMetricsPlugin plugin;
+
 	BossMetricsSession(BossMetricsPlugin plugin, BossMetricsMonster currentMonster)
 	{
 		previousKillTimes = new ArrayList<>(Arrays.asList(0, 0, 0, 0, 0, 0));
+		this.plugin = plugin;
 		this.currentMonster = currentMonster;
 		this.personalBest = plugin.getPb(currentMonster.getName());
 		log.info("SESSION STARTED FOR " + currentMonster.getName());
@@ -47,26 +45,37 @@ class BossMetricsSession
 
 	void recordPreviousTime(long seconds)
 	{
+		if ((int)seconds < personalBest)
+		{
+			personalBest = plugin.getPb(currentMonster.getName());
+		}
 		previousKillTimes.add(0, (int)seconds);
 		previousKillTimes.remove(5);
-	}
-
-	void setPb(int newPb)
-	{
-		personalBest = newPb;
+		stopKillTimer();
 	}
 
 	void startTimeoutTimer(int period)
 	{
-		timeoutTimer = new BossMetricsTimer(period);
+		timeoutTimer = new BossMetricsTimer(period, 0);
 		if (killTimer != null && currentMonster.isMonsterInstance())
 		{
-			killTimer = null;
+			stopKillTimer();
 		}
 	}
 
 	void startKillTimer()
 	{
-		killTimer = new BossMetricsTimer(-1);
+		killTimer = new BossMetricsTimer(-1, 1);
+	}
+
+	void stopTimeoutTimer()
+	{
+		timeoutTimer = null;
+	}
+
+	void stopKillTimer()
+	{
+		log.info("KILL TIMER STOPPED WITH TIME OF: " + killTimer.getText());
+		killTimer = null;
 	}
 }

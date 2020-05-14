@@ -12,10 +12,10 @@ class BossMetricsTimer
 	private final Duration duration;
 	private final long period;
 
-	BossMetricsTimer(long period)
+	BossMetricsTimer(long period, int delay)
 	{
 		this.period = period;
-		startTime = Instant.now();
+		startTime = Instant.now().plusSeconds(delay);
 		if (period == -1)
 		{
 			duration = Duration.ofSeconds(0);

@@ -9,9 +9,13 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.ChatMessageType;
+import net.runelite.api.NPC;
+import static net.runelite.api.NpcID.VORKATH_8058;
+import static net.runelite.api.NpcID.VORKATH_8059;
+import net.runelite.api.Player;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.AnimationChanged;
-import net.runelite.api.events.GameStateChanged;
+import net.runelite.api.events.NpcSpawned;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.client.config.ConfigManager;
@@ -45,12 +49,12 @@ public class BossMetricsPlugin extends Plugin
 	private BossMetricsPreviousKillsOverlay previousKillsOverlay;
 
 	@Getter(AccessLevel.PACKAGE)
-	private BossMetricsSession session = null;
+	private BossMetricsSession session;
 
 	@Getter(AccessLevel.PACKAGE)
 	private BossMetricsState state = BossMetricsState.NO_SESSION;
 
-	private BossMetricsMonster newMonster = null;
+	private BossMetricsMonster newMonster;
 
 	private static final Pattern KILL_DURATION_PATTERN = Pattern.compile("(?i)^(?:Fight |Lap |Challenge |Corrupted challenge )?duration: <col=ff0000>([0-9:]+)</col>\\. Personal best: [0-9:]+");
 	private static final Pattern NEW_PB_PATTERN = Pattern.compile("(?i)^(?:Fight |Lap |Challenge |Corrupted challenge )?duration: <col=ff0000>([0-9:]+)</col> \\(new personal best\\)");
@@ -66,20 +70,8 @@ public class BossMetricsPlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
-		expireSession();
+		stopSession();
 		log.info("Boss Metrics plugin stopped!");
-	}
-
-	@Subscribe
-	public void onAnimationChanged(AnimationChanged event)
-	{
-		//log.info("ANIMCHANGED > ACTOR: 	" + event.getActor().getName() + ", ID: " + event.getActor().getAnimation());
-
-		//Grotesque Guardians
-		if (session != null && event.getActor().getAnimation() == 390)
-		{
-			session.startKillTimer();
-		}
 	}
 
 	@Subscribe
@@ -120,17 +112,14 @@ public class BossMetricsPlugin extends Plugin
 
 	/*
 	@Subscribe
-	public void onNpcSpawned(NpcSpawned event)
+	public void onAnimationChanged(AnimationChanged event)
 	{
-		log.info("NPC SPAWNED! ID: " + event.getNpc().getId() + ", NAME: " + event.getNpc().getName());
+		//log.info("ANIMCHANGED > ACTOR: 	" + event.getActor().getName() + ", ID: " + event.getActor().getAnimation());
 
-		if (currentMonster != null)
+		//Grotesque Guardians
+		if (session != null && event.getActor().getAnimation() == 390)
 		{
-			if (currentMonster.getNpcStartID() == event.getNpc().getId())
-			{
-				log.info("CURRENT MONSTER: " + currentMonster.getName() + ", CURRENT START ID: " + currentMonster.getNpcStartID());
-				timer.start();
-			}
+			session.startKillTimer();
 		}
 	}
 	*/
@@ -144,7 +133,7 @@ public class BossMetricsPlugin extends Plugin
 			return;
 		}
 
-		log.info("MONSTER ANIM DETECTED: " + event.getActor().getName() + ", ANIM ID: " + event.getActor().getAnimation());
+		//log.info("MONSTER ANIM DETECTED: " + event.getActor().getName() + ", ANIM ID: " + event.getActor().getAnimation());
 
 		final BossMetricsMonster dyingMonster = BossMetricsMonster.monsterDeathAnimIdMap.get(event.getActor().getAnimation());
 
@@ -156,22 +145,71 @@ public class BossMetricsPlugin extends Plugin
 		}
 	}
 	 */
+	@Subscribe
+	public void onAnimationChanged(AnimationChanged event)
+	{
+		if (event.getActor() instanceof Player)
+		{
+			log.info("PLAYER: " + event.getActor().getName() + ", ANIM ID: " + event.getActor().getAnimation());
+		}
+
+		//Animation based kill timer events
+		if (event.getActor() instanceof Player && session != null)
+		{
+			switch (event.getActor().getAnimation())
+			{
+				case 827: //Vorkath start
+					session.startKillTimer();
+					break;
+				case 839: //Vorkath end
+					if (session.getKillTimer() != null)
+					{
+						session.stopKillTimer();
+					}
+					break;
+			}
+		}
+
+		//default
+		if (!(event.getActor() instanceof NPC))
+		{
+			return;
+		}
+		log.info("MONSTER: " + event.getActor().getName() + ", ANIM ID: " + event.getActor().getAnimation());
+	}
+
+	@Subscribe
+	public void onNpcSpawned(NpcSpawned event)
+	{
+		log.info("NPC SPAWNED! NAME: " + event.getNpc().getName() + ", ID: " + event.getNpc().getId());
+
+		//if Vorkath spawned, ignore the onspawn event and use animation event instead
+		if (event.getNpc().getId() == VORKATH_8058 || event.getNpc().getId() == VORKATH_8059)
+		{
+			return;
+		}
+
+		if (session != null &&
+			session.getKillTimer() == null &&
+			event.getNpc().getId() == session.getCurrentMonster().getNpcStartID())
+		{
+			session.startKillTimer();
+		}
+	}
 
 	/*
 	@Subscribe
 	public void onNpcDespawned(NpcDespawned event)
 	{
-		if (currentMonster != null)
+		if (session != null &&
+			session.getKillTimer() != null &&
+			event.getNpc().getId() == session.getCurrentMonster().getNpcStartID())
 		{
-			log.info("DESPAWNED MONSTER: " + event.getNpc().getName() + ", ID: " + event.getNpc().getId());
-			if (currentMonster.getNpcEndID() == event.getNpc().getId())
-			{
-				log.info("LOGGED CURRENT MONSTER: " + currentMonster.getName() + ", CURRENT END ID: " + currentMonster.getNpcEndID());
-				timer.end(true);
-			}
+			//log.info("DESPAWNED MONSTER: " + event.getNpc().getName() + ", ID: " + event.getNpc().getId());
+			session.recordPreviousTime(session.getKillTimer().getTimeDuration().getSeconds());
 		}
 	}
-	 */
+	*/
 
 	@Subscribe
 	public void onGameTick(GameTick tick)
@@ -208,7 +246,7 @@ public class BossMetricsPlugin extends Plugin
 				log.info("TIME REMAINING: " + timerSeconds);
 				if (timerSeconds < 0)
 				{
-					expireSession();
+					stopSession();
 				}
 			}
 
@@ -239,6 +277,15 @@ public class BossMetricsPlugin extends Plugin
 				{
 					startSession();
 				}
+				else if (session.getCurrentMonster() != newMonster)
+				{
+					stopSession();
+					startSession();
+				}
+				else if (session.getTimeoutTimer() != null)
+				{
+					session.stopTimeoutTimer();
+				}
 				break;
 			case IN_SESSION_TIMEOUT:
 				session.startTimeoutTimer(config.sessionTimeout());
@@ -267,14 +314,21 @@ public class BossMetricsPlugin extends Plugin
 		{
 			overlayManager.add(previousKillsOverlay);
 		}
+		if (state != BossMetricsState.IN_SESSION)
+		{
+			setState(BossMetricsState.IN_SESSION);
+		}
 	}
 
-	private void expireSession()
+	private void stopSession()
 	{
 		overlayManager.remove(overlay);
 		overlayManager.remove(previousKillsOverlay);
 		session = null;
-		setState(BossMetricsState.NO_SESSION);
+		if (state != BossMetricsState.NO_SESSION)
+		{
+			setState(BossMetricsState.NO_SESSION);
+		}
 		log.info("SESSION EXPIRED");
 	}
 

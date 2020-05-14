@@ -75,7 +75,7 @@ public interface BossMetricsConfig extends Config
 	)
 	default int sessionTimeout()
 	{
-		return 60;
+		return 300;
 	}
 
 

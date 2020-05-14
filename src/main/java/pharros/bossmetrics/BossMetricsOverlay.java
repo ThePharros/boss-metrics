@@ -39,7 +39,6 @@ class BossMetricsOverlay extends Overlay
 			panelComponent.getChildren().add(LineComponent.builder()
 				.left("Timeout in:")
 				.leftColor(Color.WHITE)
-				//.right(plugin.getDisplayTimeRemaining(plugin.getSession().getSessionTimeRemaining()))
 				.right(plugin.getSession().getTimeoutTimer().getText())
 				.rightColor(Color.RED)
 				.build());
@@ -72,11 +71,10 @@ class BossMetricsOverlay extends Overlay
 
 		if (config.showPersonalBest())
 		{
-			String strPersonalBest = plugin.getDisplayTime(plugin.getSession().getPersonalBest());
 			panelComponent.getChildren().add(LineComponent.builder()
 				.left("Personal best:")
 				.leftColor(Color.WHITE)
-				.right(strPersonalBest)
+				.right(plugin.getDisplayTime(plugin.getSession().getPersonalBest()))
 				.rightColor(Color.YELLOW)
 				.build());
 		}
